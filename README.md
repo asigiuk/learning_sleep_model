@@ -1,5 +1,5 @@
 # Future work
-1. Hyperparameter optimization for several parameter to find the optimal solution.
+1. Hyperparameter optimization.
 2. Experiment with different data augmentation strategies.
     * Apply random (fc, bw) bandpass filter.
     * Apply random power threshold cutoff.
