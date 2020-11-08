@@ -23,13 +23,13 @@ p.add_argument('--dataset_dir', type=str, default='./data/intermediate/', help='
 
 p.add_argument('--test_percentage', type=int, default=10, help='Percentage of images to use as a test set.')
 
-p.add_argument('--output_dir', type=str, default='./project_dir/experiment_final', help='Directory where checkpoints and event logs are written to.')
+p.add_argument('--output_dir', type=str, default='./project_dir/final', help='Directory where checkpoints and event logs are written to.')
 
 p.add_argument('--checkpoint_path', type=str, default='', help='Path to pretrained model checkpoint')
 
 p.add_argument('--restore_model', type=bool, default=False, help='Restore weights from checkpoint')
 
-p.add_argument('--max_epochs', type=int, default=3, help='Number of epochs for encoder predictor training loop')
+p.add_argument('--max_epochs', type=int, default=300, help='Number of epochs')
 
 p.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate.')
 
@@ -170,7 +170,7 @@ def main():
     # add summaries
     tf.summary.scalar('lambda value', FLAGS.lambda_value)
     tf.summary.scalar('discriminator loss', disc_loss)
-    tf.summary.scalar('dredictor loss', pred_loss)
+    tf.summary.scalar('predictor loss', pred_loss)
     tf.summary.scalar('value loss', value_loss)
     # define trainable variables for each model
     train_encoder = [var for var in tf.trainable_variables() if ('encoder' in var.name)]
@@ -197,7 +197,7 @@ def main():
     # define exponential decay learning rate
     decay_steps = int(train_dataset_size/
                       FLAGS.batch_size)
-    decay_steps = 10
+    decay_steps = 20
     learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
                                       global_step,
                                       decay_steps,
@@ -251,56 +251,64 @@ def main():
         train_writer = tf.summary.FileWriter(FLAGS.output_dir + '/train', sess.graph)
         sess.run(train_iterator.initializer)
 
-        disc_loss_np = 0
-        while disc_loss_np < 2.8:
-            for epoch in range(FLAGS.max_epochs):
-                # f = open(output_file, 'a')
-                global_step_np = sess.run(increment_global_step_op)
-                # train predictor
-                cum_pred_loss = 0.0
-                # cum_val_loss = 0.0
-                for batch in range(n_batch):
-                    batch_images, batch_sleep_label, batch_source_label = sess.run(train_next_element)
-                    # encoder training
-                    _, _, val_loss_np, pred_loss_np, disc_loss_np, summary_train = sess.run([optimizer_enc, optimizer_pred, value_loss, pred_loss, disc_loss, merged], feed_dict={input_images: batch_images, source_label:batch_source_label,  sleep_label:batch_sleep_label, tf_is_training: True})
-                    sys.stdout.write('\r>> training predictor: loss {},  batch {}/{}, ephocs {}/{}    '.format(pred_loss_np, batch+1, n_batch, epoch+1, FLAGS.max_epochs))
-                    sys.stdout.flush()
-                    cum_pred_loss += pred_loss_np
-                # add predition loss to summary
-                epoch_pred_loss = cum_pred_loss / (n_batch *FLAGS.batch_size)
-                train_writer.add_summary(summary_train, global_step_np)
-                summary = tf.Summary()
-                summary.value.add(tag='predictor loss ' , simple_value= epoch_pred_loss)
-                train_writer.add_summary(summary, global_step_np)
-            print('\nPredictor training complete')
-
-            # train discriminator
-            cum_val_loss = 0.0
-            cum_disc_loss = 0.0
+        # disc_loss_np = 0
+        # while disc_loss_np < 2.8:
+        # n_batch=2
+        for epoch in range(FLAGS.max_epochs):
+            # f = open(output_file, 'a')
+            global_step_np = sess.run(increment_global_step_op)
+            # train predictor
+            cum_pred_loss = 0.
+            cum_val_loss = 0.
+            cum_disc_loss = 0.
             for batch in range(n_batch):
                 batch_images, batch_sleep_label, batch_source_label = sess.run(train_next_element)
-                # predictor training
-                _, val_loss_np, pred_loss_np, disc_loss_np, summary_train = sess.run([optimizer_disc, value_loss, pred_loss, disc_loss, merged], feed_dict={input_images: batch_images, source_label:batch_source_label,  sleep_label:batch_sleep_label, tf_is_training: True})
-                sys.stdout.write('\r>> training discriminator: loss {}, batch {}/{}    '.format(disc_loss_np, batch+1, n_batch))
+                # encoder training
+                _, _, _, val_loss_np, pred_loss_np, disc_loss_np, summary_train = sess.run([optimizer_enc, optimizer_pred, optimizer_disc, value_loss, pred_loss, disc_loss, merged], feed_dict={input_images: batch_images, source_label:batch_source_label,  sleep_label:batch_sleep_label, tf_is_training: True})
+                sys.stdout.write('\r>> training encoder/predictor/discriminator: value loss {}, predictor loss {}, discriminator loss {}, batch {}/{}   '.format(val_loss_np, pred_loss_np, disc_loss_np, batch+1, n_batch))
                 sys.stdout.flush()
+                cum_pred_loss += pred_loss_np
                 cum_disc_loss += disc_loss_np
                 cum_val_loss += val_loss_np
-            print('\nDiscriminator training complete\n')
-            epoch_val_loss = cum_val_loss / (n_batch *FLAGS.batch_size)
-            epoch_disc_loss = cum_disc_loss / (n_batch *FLAGS.batch_size)
+            # add predition loss to summary
+            epoch_pred_loss = cum_pred_loss / n_batch
+            epoch_val_loss = cum_val_loss / n_batch
+            epoch_disc_loss = cum_disc_loss / n_batch
+            print('\nPredictor training complete')
+            train_writer.add_summary(summary_train, global_step_np)
+            # summary = tf.Summary()
+            # summary.value.add(tag='predictor loss ' , simple_value= epoch_pred_loss)
+            # train_writer.add_summary(summary, global_step_np)
+
+            # train discriminator
+            while epoch_disc_loss > 2.8:
+                cum_val_loss = 0.
+                cum_disc_loss = 0.
+                for batch in range(n_batch):
+                    batch_images, batch_sleep_label, batch_source_label = sess.run(train_next_element)
+                    # predictor training
+                    _, val_loss_np, pred_loss_np, disc_loss_np, summary_train = sess.run([optimizer_disc, value_loss, pred_loss, disc_loss, merged], feed_dict={input_images: batch_images, source_label:batch_source_label,  sleep_label:batch_sleep_label, tf_is_training: True})
+                    sys.stdout.write('\r>> training discriminator: discriminator loss {}, batch {}/{}    '.format(disc_loss_np, batch+1, n_batch))
+                    sys.stdout.flush()
+                    cum_disc_loss += disc_loss_np
+                    cum_val_loss += val_loss_np
+                epoch_val_loss = cum_val_loss / n_batch
+                epoch_disc_loss = cum_disc_loss / n_batch
+            # print('\nDiscriminator training complete')
+            train_writer.add_summary(summary_train, global_step_np)
 
             # basic evaluation
             pred_sleep, gt_label = sess.run([predict_sleep, sleep_label], feed_dict={input_images: batch_images, source_label:batch_source_label,  sleep_label:batch_sleep_label, tf_is_training: False})
             #
             print('step number {} >>>> predictor loss {}, discriminator loss {}, value loss {}\n'.format(global_step_np,  epoch_pred_loss, epoch_disc_loss ,epoch_val_loss))
             with open(output_file, 'a') as file:
-                file.write('predictor loss: {}, discriminator loss: {}, value loss: {} for step number {}'.format( epoch_pred_loss, epoch_disc_loss ,epoch_val_loss , global_step_np))
+                file.write('predictor loss: {}, discriminator loss: {}, value loss: {} for step number {}'.format(epoch_pred_loss, epoch_disc_loss ,epoch_val_loss , global_step_np))
 
             # Add to summary
-            summary = tf.Summary()
-            summary.value.add(tag=' value loss ' , simple_value= epoch_val_loss)
-            summary.value.add(tag='discriminator loss ' , simple_value= epoch_disc_loss)
-            train_writer.add_summary(summary, global_step_np)
+            # summary = tf.Summary()
+            # summary.value.add(tag=' value loss ' , simple_value= epoch_val_loss)
+            # summary.value.add(tag='discriminator loss ' , simple_value= epoch_disc_loss)
+            # train_writer.add_summary(summary, global_step_np)
 
             # saving checkpoint
             print('save model')

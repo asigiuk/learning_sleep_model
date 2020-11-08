@@ -22,7 +22,7 @@ import argparse
 
 p = argparse.ArgumentParser()
 
-p.add_argument('--input_dir', type=str, default='./project_dir/', help='Directory where checkpoints and event logs are written to.')
+p.add_argument('--input_dir', type=str, default='./project_dir/final', help='Directory where checkpoints and event logs are written to.')
 
 p.add_argument('--batch_size', type=int, default=1, help='The Number of gradients to collect before updating params.')
 

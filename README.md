@@ -10,7 +10,7 @@
 ```shell
 
 python train.py \
-    --output_dir=./project_dir \
+    --output_dir=./project_dir/final \
     --dataset_dir=./data/intermediate/ \
     --batch_size=32
 ```
@@ -22,5 +22,8 @@ The training scripts follows the model implementation provided in the paper (Lea
 ```shell
 
 python pred.py \
-    --input_dir=./project_dir
+    --input_dir=./project_dir/final
 ```
+
+
+
