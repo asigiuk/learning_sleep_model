@@ -264,8 +264,8 @@ def main():
             for batch in range(n_batch):
                 batch_images, batch_sleep_label, batch_source_label = sess.run(train_next_element)
                 # encoder training
-                _, _, _, val_loss_np, pred_loss_np, disc_loss_np, summary_train = sess.run([optimizer_enc, optimizer_pred, optimizer_disc, value_loss, pred_loss, disc_loss, merged], feed_dict={input_images: batch_images, source_label:batch_source_label,  sleep_label:batch_sleep_label, tf_is_training: True})
-                sys.stdout.write('\r>> training encoder/predictor/discriminator: value loss {}, predictor loss {}, discriminator loss {}, batch {}/{}   '.format(val_loss_np, pred_loss_np, disc_loss_np, batch+1, n_batch))
+                _, _, val_loss_np, pred_loss_np, disc_loss_np, summary_train = sess.run([optimizer_enc, optimizer_pred, value_loss, pred_loss, disc_loss, merged], feed_dict={input_images: batch_images, source_label:batch_source_label,  sleep_label:batch_sleep_label, tf_is_training: True})
+                sys.stdout.write('\r>> training encoder/predictor: value loss {}, predictor loss {}, discriminator loss {}, batch {}/{}   '.format(val_loss_np, pred_loss_np, disc_loss_np, batch+1, n_batch))
                 sys.stdout.flush()
                 cum_pred_loss += pred_loss_np
                 cum_disc_loss += disc_loss_np
